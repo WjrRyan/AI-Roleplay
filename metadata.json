@@ -1,0 +1,7 @@
+{
+  "name": "AI 绩效陪练 (C类员工面谈)",
+  "description": "一个互动式角色扮演模拟器，供管理者练习与表现不佳的员工进行绩效面谈。具有可定制的角色、实时指导和会后分析功能。",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
