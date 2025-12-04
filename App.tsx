@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AppStep, Persona, Message, SavedSession, FeedbackReport } from './types';
 import { StepIntro } from './components/StepIntro';
@@ -11,6 +12,7 @@ function App() {
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [sessionMessages, setSessionMessages] = useState<Message[]>([]);
   const [sessionReport, setSessionReport] = useState<FeedbackReport | undefined>(undefined);
+  const [sessionNps, setSessionNps] = useState<number | undefined>(undefined);
 
   // Flow Handlers
   const handleStartSetup = () => {
@@ -20,6 +22,7 @@ function App() {
   const handleStartChat = (persona: Persona) => {
     setSelectedPersona(persona);
     setSessionReport(undefined); // Reset previous report
+    setSessionNps(undefined);
     setCurrentStep(AppStep.CHAT);
   };
 
@@ -32,6 +35,7 @@ function App() {
     setSelectedPersona(null);
     setSessionMessages([]);
     setSessionReport(undefined);
+    setSessionNps(undefined);
     setCurrentStep(AppStep.INTRO);
   };
 
@@ -47,6 +51,7 @@ function App() {
     setSelectedPersona(session.persona);
     setSessionMessages(session.messages);
     setSessionReport(session.report);
+    setSessionNps(session.nps);
     setCurrentStep(AppStep.REPORT);
   };
 
@@ -72,6 +77,7 @@ function App() {
              persona={selectedPersona} 
              onRestart={handleRestart}
              existingReport={sessionReport}
+             existingNps={sessionNps}
           />
         )}
         

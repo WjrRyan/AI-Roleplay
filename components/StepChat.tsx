@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, User, Volume2, VolumeX, Mic, StopCircle, RefreshCw, LogOut, Lightbulb, MessageCircle, X, Sparkles, Activity, TrendingDown, ArrowRight, BrainCircuit, AlertTriangle } from 'lucide-react';
 import { Persona, Message, AcceptanceScores, BigFive } from '../types';
@@ -60,13 +61,18 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
     };
   }, [persona]);
 
-  useEffect(() => {
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]); 
+  };
 
   useEffect(() => {
+    scrollToBottom();
+  }, [messages]); 
+
+  // Additional delayed scroll for keyboard adjustments
+  useEffect(() => {
     const timer = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottom();
     }, 100);
     return () => clearTimeout(timer);
   }, [messages.map(m => m.analysis || m.suggestion).join('')]); 
@@ -149,6 +155,9 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
     setIsLoading(true);
+    
+    // Force scroll after user send
+    setTimeout(scrollToBottom, 50);
 
     try {
       const response = await chatSession.sendMessage({ message: userMsg.text });
@@ -201,11 +210,20 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, analysis: undefined, suggestion: undefined } : m));
   };
 
+  // Handler for mobile input focus to scroll view
+  const handleInputFocus = () => {
+     // Small delay to allow keyboard to pop up and resize viewport
+     setTimeout(() => {
+        scrollToBottom();
+        // window.scrollTo(0, document.body.scrollHeight);
+     }, 300);
+  };
+
   // Mobile status drawer
   const [showMobileStats, setShowMobileStats] = useState(false);
 
   return (
-    <div className="flex h-full max-w-7xl mx-auto gap-6 p-2 md:p-6 animate-fadeIn">
+    <div className="flex h-full max-w-7xl mx-auto gap-6 p-0 md:p-6 animate-fadeIn">
       {/* Mobile Stats Drawer (Overlay) */}
       {showMobileStats && (
         <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setShowMobileStats(false)}>
@@ -349,16 +367,16 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
+      <div className="flex-1 flex flex-col bg-white md:rounded-3xl shadow-none md:shadow-2xl shadow-slate-200/50 border-x-0 md:border md:border-slate-100 overflow-hidden relative h-full">
         {/* Chat Header */}
-        <div className="bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center absolute top-0 left-0 right-0 z-10">
+        <div className="bg-white/90 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center absolute top-0 left-0 right-0 z-10 shadow-sm">
            <div className="flex items-center gap-3" onClick={() => setShowMobileStats(true)}>
                <div className="lg:hidden relative">
                   <img src={persona.avatarUrl} className="w-10 h-10 rounded-full border border-slate-200" />
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 border-2 border-white rounded-full"></div>
                </div>
                <div>
-                  <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                  <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm md:text-base">
                     绩效沟通会议
                     <span className="flex h-2 w-2 relative">
                       <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isListening ? 'bg-red-400' : 'bg-green-400'}`}></span>
@@ -370,7 +388,7 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                </div>
            </div>
            <div className="flex gap-2 lg:hidden">
-              <button onClick={() => onFinish(messages)} className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg">
+              <button onClick={() => onFinish(messages)} className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100">
                 结束
               </button>
            </div>
@@ -409,7 +427,7 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                             </div>
                         )}
 
-                        <div className={`group relative p-3 md:p-4 text-sm leading-relaxed shadow-sm transition-all text-left
+                        <div className={`group relative p-3 md:p-4 text-base md:text-sm leading-relaxed shadow-sm transition-all text-left
                             ${msg.role === 'user' 
                             ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none hover:shadow-md' 
                             : 'bg-white text-slate-800 border border-slate-100 rounded-2xl rounded-tl-none hover:shadow-md'
@@ -510,17 +528,21 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <div className="p-3 md:p-6 bg-white border-t border-slate-100 z-20">
+        {/* Input Area - Optimized for Mobile Keyboard */}
+        <div className="p-3 md:p-6 bg-white border-t border-slate-100 z-20 flex-shrink-0">
           {isListening && <div className="text-center text-xs text-red-500 mb-2 font-bold animate-pulse">正在录音中... 请说话</div>}
           <div className="flex gap-2 md:gap-3 items-end">
             <div className={`flex-1 relative bg-slate-100 rounded-2xl border transition-all ${isListening ? 'border-red-500 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10'}`}>
                 <textarea
-                    rows={3}
+                    rows={1}
                     value={inputText}
                     disabled={isLoading || isListening}
+                    onFocus={handleInputFocus}
                     onChange={(e) => {
                        setInputText(e.target.value);
+                       // Auto-grow height slightly
+                       e.target.style.height = 'auto';
+                       e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
                     }}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -529,7 +551,8 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                         }
                     }}
                     placeholder={isListening ? "正在聆听..." : "输入你的回复 (按 Enter 发送)..."}
-                    className="w-full bg-transparent border-0 px-3 py-3 md:px-4 md:py-3.5 focus:ring-0 outline-none resize-none min-h-[80px] md:min-h-[160px] leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed h-full text-sm md:text-base"
+                    className="w-full bg-transparent border-0 px-3 py-3 md:px-4 md:py-3.5 focus:ring-0 outline-none resize-none min-h-[50px] md:min-h-[60px] max-h-[120px] leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed text-base"
+                    style={{ fontSize: '16px' }} // Prevent iOS zoom
                 />
                 
                 <div className="absolute right-2 bottom-2 group">
@@ -545,11 +568,6 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                    >
                      {isListening ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                    </button>
-                   {!browserSupportsSpeech && (
-                      <div className="absolute bottom-full right-0 mb-2 w-32 bg-black text-white text-xs p-2 rounded hidden group-hover:block">
-                          浏览器不支持语音
-                      </div>
-                   )}
                 </div>
             </div>
             

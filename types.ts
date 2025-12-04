@@ -25,8 +25,10 @@ export interface AcceptanceScores {
 }
 
 export interface Persona {
+  id?: string;                // Optional ID for custom personas
+  isCustom?: boolean;         // Flag to identify user-created personas
   name: string;
-  gender: 'Male' | 'Female'; // Added gender
+  gender: 'Male' | 'Female';
   avatarUrl?: string;
   voiceName?: string;
   
@@ -92,4 +94,5 @@ export interface SavedSession {
   persona: Persona;
   messages: Message[];
   report: FeedbackReport;
+  nps?: number; // Optional user rating of the session
 }

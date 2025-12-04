@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { Users, AlertTriangle, Play, Sparkles, UserPlus, ArrowLeft, Briefcase, BrainCircuit, ScanFace, FileCode, Check } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { Users, AlertTriangle, Play, Sparkles, UserPlus, ArrowLeft, Briefcase, BrainCircuit, ScanFace, FileCode, Check, Trash2, Bookmark } from 'lucide-react';
 import { Persona, BigFive } from '../types';
 import { generateSystemInstruction } from '../services/geminiService';
+import { saveCustomPersona, getCustomPersonas, deleteCustomPersona } from '../services/storage';
 
 interface Props {
   onStart: (persona: Persona) => void;
   onBack: () => void;
 }
 
-// Updated Templates to match new Persona structure
+// System Templates
 const TEMPLATES: Persona[] = [
   {
     name: "小陈",
@@ -73,10 +75,12 @@ const TEMPLATES: Persona[] = [
 ];
 
 export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'custom' | 'template'>('template');
+  const [activeTab, setActiveTab] = useState<'template' | 'custom' | 'create'>('template');
   const [viewMode, setViewMode] = useState<'form' | 'preview'>('form');
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
   
+  const [myPersonas, setMyPersonas] = useState<Persona[]>([]);
+
   const [customPersona, setCustomPersona] = useState<Persona>({
     name: "",
     gender: "Female",
@@ -96,8 +100,21 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
     }
   });
 
+  useEffect(() => {
+    // Load custom personas on mount
+    setMyPersonas(getCustomPersonas());
+  }, []);
+
   const handleStartTemplate = (template: Persona) => {
     onStart(template);
+  };
+
+  const handleDeleteCustom = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm("确定要删除这个自定义角色吗？")) {
+      deleteCustomPersona(id);
+      setMyPersonas(getCustomPersonas());
+    }
   };
 
   const generatePreview = (e: React.FormEvent) => {
@@ -112,6 +129,8 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
 
     const finalPersona = {
         ...customPersona,
+        id: customPersona.id || Date.now().toString(),
+        isCustom: true,
         avatarUrl,
         voiceName
     };
@@ -126,6 +145,9 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
   };
 
   const handleConfirmStart = () => {
+    // Save the custom persona before starting
+    saveCustomPersona(customPersona);
+    setMyPersonas(getCustomPersonas()); // Update local list
     onStart(customPersona);
   };
 
@@ -168,6 +190,9 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
                              <span className={`px-2 py-0.5 text-xs font-bold rounded text-white ${customPersona.gender === 'Male' ? 'bg-blue-500' : 'bg-pink-500'}`}>
                                 {customPersona.gender === 'Male' ? '男' : '女'}
                              </span>
+                             <span className="px-2 py-0.5 text-xs font-bold rounded bg-purple-100 text-purple-700">
+                                自定义
+                             </span>
                         </div>
                         <p className="text-slate-500 font-medium text-sm md:text-base">{customPersona.jobTitle} · 工龄 {customPersona.yearsOfExperience} 年</p>
                      </div>
@@ -191,7 +216,7 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
                         onClick={handleConfirmStart}
                         className="w-full py-3 md:py-4 bg-slate-900 text-white rounded-xl font-bold text-base md:text-lg shadow-lg hover:bg-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
                     >
-                        <Check className="w-5 h-5" /> 确认无误，开始演练
+                        <Check className="w-5 h-5" /> 保存并开始演练
                     </button>
                 </div>
             </div>
@@ -221,7 +246,7 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
 
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden flex-1 flex flex-col min-h-0">
         {/* Tabs */}
-        <div className="flex border-b border-slate-100 bg-slate-50/50 p-1 mx-2 md:mx-4 mt-2 md:mt-4 rounded-xl flex-shrink-0">
+        <div className="flex border-b border-slate-100 bg-slate-50/50 p-1 mx-2 md:mx-4 mt-2 md:mt-4 rounded-xl flex-shrink-0 gap-1">
           <button
             onClick={() => setActiveTab('template')}
             className={`flex-1 py-2 md:py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
@@ -231,7 +256,7 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
             }`}
           >
             <Sparkles className="w-4 h-4 text-amber-500" />
-            推荐案例 (经典题库)
+            推荐案例
           </button>
           <button
             onClick={() => setActiveTab('custom')}
@@ -241,14 +266,27 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
+            <Bookmark className="w-4 h-4 text-purple-500" />
+            我的角色 ({myPersonas.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('create')}
+            className={`flex-1 py-2 md:py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'create' 
+                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
             <UserPlus className="w-4 h-4 text-blue-500" />
-            自定义画像
+            新建角色
           </button>
         </div>
 
         {/* Content Area - Scrollable */}
         <div className="p-4 md:p-8 flex-1 overflow-y-auto bg-gradient-to-b from-white to-slate-50">
-          {activeTab === 'template' ? (
+          
+          {/* 1. Templates Tab */}
+          {activeTab === 'template' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 pb-8">
               {TEMPLATES.map((t, idx) => (
                 <div key={idx} className="group relative bg-white border border-slate-200 rounded-2xl p-5 md:p-6 hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 transition-all duration-300 flex flex-col">
@@ -300,7 +338,80 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
                 </div>
               ))}
             </div>
-          ) : (
+          )}
+
+          {/* 2. Custom Personas Tab (Saved) */}
+          {activeTab === 'custom' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 pb-8">
+               {myPersonas.length === 0 ? (
+                   <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
+                       <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                          <UserPlus className="w-8 h-8 opacity-50" />
+                       </div>
+                       <p className="text-lg font-medium text-slate-600">还没有创建过角色</p>
+                       <p className="text-sm">点击上方 "新建角色" 创建一个属于你的案例</p>
+                   </div>
+               ) : (
+                  myPersonas.map((t, idx) => (
+                    <div key={idx} className="group relative bg-white border border-purple-200 rounded-2xl p-5 md:p-6 hover:shadow-xl hover:border-purple-400 hover:-translate-y-1 transition-all duration-300 flex flex-col ring-1 ring-purple-100">
+                      
+                      <div className="absolute -top-3 left-6 px-3 py-1 bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
+                         自定义
+                      </div>
+
+                      {/* Card Header */}
+                      <div className="flex items-start justify-between mb-4 mt-2">
+                         <div className="relative">
+                            <img src={t.avatarUrl} alt={t.name} className="w-16 h-16 rounded-2xl object-cover shadow-sm group-hover:shadow-md transition-shadow" />
+                         </div>
+                         <div className="text-right">
+                            <div className="flex items-center justify-end gap-2 mb-1">
+                                 <h3 className="text-xl font-bold text-slate-900">{t.name}</h3>
+                                 <span className={`text-[10px] px-1.5 py-0.5 rounded text-white ${t.gender === 'Male' ? 'bg-blue-400' : 'bg-pink-400'}`}>
+                                    {t.gender === 'Male' ? '男' : '女'}
+                                 </span>
+                            </div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t.jobTitle}</p>
+                         </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="mb-6 flex-1 space-y-3">
+                        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
+                           <Users className="w-3 h-3" /> 工龄: {t.yearsOfExperience} 年
+                        </div>
+                        <div>
+                            <span className="text-xs font-bold text-slate-400 uppercase">主要问题</span>
+                            <p className="text-sm text-slate-700 leading-relaxed mt-1 line-clamp-4">
+                                {t.businessPainPoints}
+                            </p>
+                        </div>
+                      </div>
+
+                      {/* Button */}
+                      <div className="flex gap-2 mt-auto">
+                        <button
+                            onClick={() => handleStartTemplate(t)}
+                            className="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+                        >
+                            开始 <Play className="w-4 h-4" />
+                        </button>
+                        <button
+                             onClick={(e) => handleDeleteCustom(e, t.id!)}
+                             className="p-3 border border-red-200 text-red-400 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors"
+                             title="删除角色"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+               )}
+            </div>
+          )}
+
+          {/* 3. Create Custom Tab */}
+          {activeTab === 'create' && (
             <div className="max-w-4xl mx-auto pb-10">
                <form onSubmit={generatePreview} className="space-y-6 md:space-y-8">
                   
@@ -523,7 +634,7 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
 
                   <div className="pt-2 pb-10">
                     <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-800 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
-                      <FileCode className="w-5 h-5" /> 生成设定提示词 (Prompt)
+                      <FileCode className="w-5 h-5" /> 预览角色设定 (Prompt)
                     </button>
                   </div>
                </form>
