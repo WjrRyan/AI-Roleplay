@@ -1,9 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
-import { Users, AlertTriangle, Play, Sparkles, UserPlus, ArrowLeft, Briefcase, BrainCircuit, ScanFace, FileCode, Check, Trash2, Bookmark } from 'lucide-react';
-import { Persona, BigFive } from '../types';
+import { Users, AlertTriangle, Briefcase, BrainCircuit, FileCode, Check, Bookmark, Sparkles, UserPlus, User as UserIcon } from 'lucide-react';
+import { Persona } from '../types';
 import { generateSystemInstruction } from '../services/geminiService';
 import { saveCustomPersona, getCustomPersonas, deleteCustomPersona } from '../services/storage';
+import { Button, Card, Tabs, Form, Input, Select, Radio, Tag, Modal, Avatar, Row, Col, Typography, message, Empty, Space } from 'antd';
+import { PlayCircleOutlined, DeleteOutlined, ArrowLeftOutlined, ManOutlined, WomanOutlined } from '@ant-design/icons';
+
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
 
 interface Props {
   onStart: (persona: Persona) => void;
@@ -75,12 +80,13 @@ const TEMPLATES: Persona[] = [
 ];
 
 export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'template' | 'custom' | 'create'>('template');
+  const [activeTab, setActiveTab] = useState<string>('template');
   const [viewMode, setViewMode] = useState<'form' | 'preview'>('form');
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
-  
   const [myPersonas, setMyPersonas] = useState<Persona[]>([]);
-
+  const [form] = Form.useForm();
+  
+  // Initial state for create form
   const [customPersona, setCustomPersona] = useState<Persona>({
     name: "",
     gender: "Female",
@@ -101,7 +107,6 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
   });
 
   useEffect(() => {
-    // Load custom personas on mount
     setMyPersonas(getCustomPersonas());
   }, []);
 
@@ -111,536 +116,334 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
 
   const handleDeleteCustom = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm("确定要删除这个自定义角色吗？")) {
-      deleteCustomPersona(id);
-      setMyPersonas(getCustomPersonas());
-    }
-  };
-
-  const generatePreview = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // 1. Assign Avatar based on gender
-    const randomId = Math.floor(Math.random() * 99);
-    const avatarUrl = `https://randomuser.me/api/portraits/${customPersona.gender === 'Male' ? 'men' : 'women'}/${randomId}.jpg`;
-    
-    // 2. Assign Voice based on gender
-    const voiceName = customPersona.gender === 'Male' ? 'Fenrir' : 'Kore';
-
-    const finalPersona = {
-        ...customPersona,
-        id: customPersona.id || Date.now().toString(),
-        isCustom: true,
-        avatarUrl,
-        voiceName
-    };
-
-    setCustomPersona(finalPersona);
-    
-    // 3. Generate Prompt
-    const prompt = generateSystemInstruction(finalPersona);
-    setGeneratedPrompt(prompt);
-    
-    setViewMode('preview');
-  };
-
-  const handleConfirmStart = () => {
-    // Save the custom persona before starting
-    saveCustomPersona(customPersona);
-    setMyPersonas(getCustomPersonas()); // Update local list
-    onStart(customPersona);
-  };
-
-  const handleBigFiveChange = (key: keyof BigFive, value: 'High' | 'Low') => {
-    setCustomPersona({
-      ...customPersona,
-      bigFive: {
-        ...customPersona.bigFive,
-        [key]: value
+    Modal.confirm({
+      title: '确认删除',
+      content: '确定要删除这个自定义角色吗？此操作无法撤销。',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => {
+        deleteCustomPersona(id);
+        setMyPersonas(getCustomPersonas());
+        message.success('角色已删除');
       }
     });
   };
 
-  if (viewMode === 'preview') {
-    return (
-        <div className="h-full flex flex-col max-w-4xl mx-auto p-3 md:p-6 animate-fadeIn pb-safe-bottom">
-             <div className="flex items-center justify-between mb-4 md:mb-6">
-                <button 
-                onClick={() => setViewMode('form')} 
-                className="group flex items-center text-slate-500 hover:text-slate-800 font-medium text-sm transition-colors"
-                >
-                <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center mr-2 group-hover:border-slate-400 transition-colors">
-                    <ArrowLeft className="w-4 h-4" />
+  const generatePreview = async () => {
+    try {
+        await form.validateFields();
+        const values = form.getFieldsValue();
+        
+        // 1. Assign Avatar based on gender
+        const randomId = Math.floor(Math.random() * 99);
+        const avatarUrl = `https://randomuser.me/api/portraits/${values.gender === 'Male' ? 'men' : 'women'}/${randomId}.jpg`;
+        
+        // 2. Assign Voice based on gender
+        const voiceName = values.gender === 'Male' ? 'Fenrir' : 'Kore';
+
+        const finalPersona: Persona = {
+            ...customPersona, // keep bigFive defaults
+            ...values,
+            bigFive: values.bigFive,
+            id: customPersona.id || Date.now().toString(),
+            isCustom: true,
+            avatarUrl,
+            voiceName
+        };
+
+        setCustomPersona(finalPersona);
+        
+        // 3. Generate Prompt
+        const prompt = generateSystemInstruction(finalPersona);
+        setGeneratedPrompt(prompt);
+        
+        setViewMode('preview');
+    } catch (error) {
+        message.error('请填写所有必填信息');
+    }
+  };
+
+  const handleConfirmStart = () => {
+    saveCustomPersona(customPersona);
+    setMyPersonas(getCustomPersonas());
+    message.success('角色已保存并开始');
+    onStart(customPersona);
+  };
+
+  // Re-designed Card based on screenshot
+  const renderPersonaCard = (p: Persona, isCustom: boolean = false) => (
+    <div 
+        key={p.id || p.name}
+        className="group relative bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden cursor-pointer"
+        onClick={() => handleStartTemplate(p)}
+    >
+        {/* Delete Button for Custom */}
+        {isCustom && (
+            <Button 
+                type="text" 
+                danger 
+                icon={<DeleteOutlined />} 
+                className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => handleDeleteCustom(e, p.id!)}
+            />
+        )}
+
+        {/* Card Body */}
+        <div className="p-6 pb-2 flex-1 flex flex-col">
+            
+            {/* Header: Name Right, Info Left/Below */}
+            <div className="flex justify-between items-start mb-4">
+                {/* Left Side: Avatar or Tags */}
+                 <div className="flex flex-col gap-2 pt-1">
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2">
+                        <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md text-xs font-medium text-slate-600">
+                             <UserIcon className="w-3 h-3" />
+                             {p.yearsOfExperience}年工龄
+                        </div>
+                        {p.personaTag && (
+                            <div className={`px-2 py-1 rounded-md text-xs font-medium ${
+                                p.personaTag.includes('防御') ? 'bg-orange-50 text-orange-600' :
+                                p.personaTag.includes('争辩') ? 'bg-red-50 text-red-600' :
+                                'bg-slate-100 text-slate-600'
+                            }`}>
+                                {p.personaTag}
+                            </div>
+                        )}
+                    </div>
                 </div>
-                返回修改
-                </button>
-                <div className="text-center">
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-900">角色设定预览</h2>
-                    <p className="text-xs md:text-sm text-slate-500 mt-1">AI 将基于以下提示词进行扮演</p>
+
+                {/* Right Side: Name & Title */}
+                <div className="text-right">
+                    <div className="text-2xl font-bold text-slate-900 mb-1 leading-none">{p.name}</div>
+                    <div className="flex items-center justify-end gap-1.5">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${p.gender === 'Male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>
+                            {p.gender === 'Male' ? '男' : '女'}
+                        </span>
+                        <span className="text-sm text-slate-500">{p.jobTitle}</span>
+                    </div>
                 </div>
-                <div className="w-24"></div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden flex-1 flex flex-col min-h-0 border border-slate-200">
-                <div className="p-4 md:p-6 bg-slate-50 border-b border-slate-100 flex items-center gap-4 md:gap-6">
-                     <img src={customPersona.avatarUrl} alt={customPersona.name} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl shadow-md border-2 border-white object-cover" />
+            {/* Pain Points Box */}
+            <div className="bg-slate-50 rounded-xl p-4 mb-4 flex-1">
+                <div className="text-xs text-slate-400 mb-2 font-medium">核心痛点</div>
+                <p className="text-sm text-slate-700 leading-relaxed mb-0 line-clamp-4">
+                    {p.businessPainPoints}
+                </p>
+            </div>
+        </div>
+
+        {/* Footer: Start Button */}
+        <div className="py-4 border-t border-slate-50 flex items-center justify-center text-slate-800 font-medium group-hover:text-blue-600 transition-colors bg-white">
+            <PlayCircleOutlined className="mr-2 text-lg" />
+            开始
+        </div>
+    </div>
+  );
+
+  if (viewMode === 'preview') {
+    return (
+        <div className="h-full flex flex-col max-w-4xl mx-auto p-4 md:p-6 animate-fadeIn pb-safe-bottom">
+             <div className="flex items-center justify-between mb-4">
+                <Button icon={<ArrowLeftOutlined />} onClick={() => setViewMode('form')}>返回修改</Button>
+                <Title level={4} style={{ margin: 0 }}>角色设定预览</Title>
+                <div className="w-20"></div>
+            </div>
+
+            <Card className="flex-1 flex flex-col overflow-hidden shadow-lg border-slate-200" bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column', padding: 0 }}>
+                <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center gap-6">
+                     <Avatar size={80} src={customPersona.avatarUrl} shape="square" className="rounded-2xl border-2 border-white shadow-md" />
                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                             <h3 className="text-lg md:text-xl font-bold text-slate-900">{customPersona.name}</h3>
-                             <span className={`px-2 py-0.5 text-xs font-bold rounded text-white ${customPersona.gender === 'Male' ? 'bg-blue-500' : 'bg-pink-500'}`}>
-                                {customPersona.gender === 'Male' ? '男' : '女'}
-                             </span>
-                             <span className="px-2 py-0.5 text-xs font-bold rounded bg-purple-100 text-purple-700">
-                                自定义
-                             </span>
-                        </div>
-                        <p className="text-slate-500 font-medium text-sm md:text-base">{customPersona.jobTitle} · 工龄 {customPersona.yearsOfExperience} 年</p>
+                        <Title level={3} style={{ marginBottom: 4 }}>
+                            {customPersona.name} 
+                            <Tag color="purple" className="ml-2 text-sm align-middle">自定义</Tag>
+                        </Title>
+                        <Text type="secondary">{customPersona.jobTitle} · 工龄 {customPersona.yearsOfExperience} 年</Text>
                      </div>
                 </div>
 
                 <div className="flex-1 overflow-hidden relative">
                     <div className="absolute top-0 right-0 p-4 z-10">
-                        <span className="flex items-center gap-1 text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded border border-slate-200">
-                            <FileCode className="w-3 h-3" /> System Prompt
-                        </span>
+                        <Tag icon={<FileCode className="w-3 h-3 mr-1" />}>System Prompt</Tag>
                     </div>
-                    <textarea 
+                    <TextArea 
                         readOnly 
-                        className="w-full h-full resize-none p-4 md:p-6 text-xs md:text-sm font-mono text-slate-600 bg-white focus:outline-none"
+                        className="w-full h-full resize-none p-6 font-mono text-xs md:text-sm text-slate-600 border-none focus:shadow-none"
                         value={generatedPrompt}
+                        style={{ height: '100%' }}
                     />
                 </div>
 
-                <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50">
-                    <button 
+                <div className="p-6 border-t border-slate-100 bg-slate-50">
+                    <Button 
+                        type="primary" 
+                        size="large" 
+                        block 
+                        icon={<Check className="w-4 h-4" />}
                         onClick={handleConfirmStart}
-                        className="w-full py-3 md:py-4 bg-slate-900 text-white rounded-xl font-bold text-base md:text-lg shadow-lg hover:bg-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+                        className="h-12 text-lg font-bold"
                     >
-                        <Check className="w-5 h-5" /> 保存并开始演练
-                    </button>
+                        保存并开始演练
+                    </Button>
                 </div>
-            </div>
+            </Card>
         </div>
     );
   }
 
+  const items = [
+    {
+      key: 'template',
+      label: (<span><Sparkles className="w-4 h-4 inline mr-1" /> 推荐案例</span>),
+      children: (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pb-6">
+            {TEMPLATES.map(t => renderPersonaCard(t))}
+        </div>
+      ),
+    },
+    {
+      key: 'custom',
+      label: (<span><Bookmark className="w-4 h-4 inline mr-1" /> 我的角色</span>),
+      children: (
+        <div className="h-full">
+            {myPersonas.length === 0 ? (
+                 <Empty description="暂无自定义角色" className="py-20">
+                     <Button type="primary" onClick={() => setActiveTab('create')}>去创建一个</Button>
+                 </Empty>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pb-6">
+                    {myPersonas.map(t => renderPersonaCard(t, true))}
+                </div>
+            )}
+        </div>
+      ),
+    },
+    {
+      key: 'create',
+      label: (<span><UserPlus className="w-4 h-4 inline mr-1" /> 新建角色</span>),
+      children: (
+        <div className="max-w-4xl mx-auto pb-10 px-1 md:px-0">
+           <Form 
+                form={form} 
+                layout="vertical" 
+                initialValues={customPersona}
+                onFinish={generatePreview}
+                className="space-y-6"
+           >
+              <Card title={<><Briefcase className="w-4 h-4 inline mr-2 text-blue-500" />基本信息</>} className="shadow-sm">
+                  <Row gutter={16}>
+                      <Col xs={12} md={12}>
+                          <Form.Item name="name" label="角色姓名" rules={[{ required: true }]}>
+                              <Input placeholder="例如：李明" />
+                          </Form.Item>
+                      </Col>
+                      <Col xs={12} md={12}>
+                          <Form.Item name="gender" label="性别" rules={[{ required: true }]}>
+                              <Radio.Group className="w-full flex">
+                                  <Radio.Button value="Male" className="flex-1 text-center text-sm md:text-base"><ManOutlined className="mr-1"/>男</Radio.Button>
+                                  <Radio.Button value="Female" className="flex-1 text-center text-sm md:text-base"><WomanOutlined className="mr-1"/>女</Radio.Button>
+                              </Radio.Group>
+                          </Form.Item>
+                      </Col>
+                  </Row>
+                  <Row gutter={16}>
+                      <Col xs={12} md={12}>
+                          <Form.Item name="jobTitle" label="职位名称" rules={[{ required: true }]}>
+                              <Input placeholder="例如：高级开发" />
+                          </Form.Item>
+                      </Col>
+                      <Col xs={12} md={12}>
+                          <Form.Item name="yearsOfExperience" label="工龄 (年)" rules={[{ required: true }]}>
+                              <Input type="number" step={0.5} placeholder="例如：3.5" />
+                          </Form.Item>
+                      </Col>
+                  </Row>
+                  <Row gutter={16}>
+                      <Col xs={12} md={12}>
+                          <Form.Item name="lastPerformance" label="上次绩效">
+                              <Select>
+                                  <Option value="A">A (优秀)</Option>
+                                  <Option value="B+">B+ (良好)</Option>
+                                  <Option value="B">B (合格)</Option>
+                                  <Option value="C">C (不合格)</Option>
+                              </Select>
+                          </Form.Item>
+                      </Col>
+                      <Col xs={12} md={12}>
+                          <Form.Item name="thisPerformance" label="本次绩效">
+                              <Select>
+                                  <Option value="C">C (不合格)</Option>
+                                  <Option value="D">D (淘汰)</Option>
+                                  <Option value="B">B (合格-模拟)</Option>
+                              </Select>
+                          </Form.Item>
+                      </Col>
+                  </Row>
+                  
+                  <Form.Item name="description" label="工作内容描述" rules={[{ required: true }]}>
+                      <TextArea rows={2} placeholder="简述该员工的主要职责..." />
+                  </Form.Item>
+
+                  <Form.Item 
+                    name="businessPainPoints" 
+                    label={<span className="flex items-center gap-1 text-amber-600"><AlertTriangle className="w-4 h-4" /> 业务痛点 / 绩效问题</span>} 
+                    rules={[{ required: true }]}
+                  >
+                      <TextArea rows={3} placeholder="请详细描述具体的绩效问题..." className="bg-amber-50 border-amber-200" />
+                  </Form.Item>
+              </Card>
+
+              <Card title={<><BrainCircuit className="w-4 h-4 inline mr-2 text-purple-600" />性格特征 (大五人格)</>} className="shadow-sm">
+                  <Row gutter={[16, 16]}>
+                      {['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'].map((trait) => (
+                          <Col xs={12} md={12} key={trait}>
+                              <Form.Item 
+                                name={['bigFive', trait]} 
+                                label={trait.charAt(0).toUpperCase() + trait.slice(1)}
+                                className="mb-0"
+                              >
+                                  <Select>
+                                      <Option value="High">High (高)</Option>
+                                      <Option value="Low">Low (低)</Option>
+                                  </Select>
+                              </Form.Item>
+                          </Col>
+                      ))}
+                  </Row>
+              </Card>
+
+              <Button type="primary" htmlType="submit" size="large" block icon={<FileCode className="w-4 h-4" />} className="h-12 text-lg">
+                  预览角色设定
+              </Button>
+           </Form>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="h-full flex flex-col max-w-6xl mx-auto p-3 md:p-6 animate-fadeIn pb-safe-bottom overflow-hidden">
+    <div className="h-full flex flex-col max-w-6xl mx-auto p-4 md:p-6 animate-fadeIn pb-safe-bottom overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 md:mb-6 flex-shrink-0">
-        <button 
-          onClick={onBack} 
-          className="group flex items-center text-slate-500 hover:text-slate-800 font-medium text-sm transition-colors"
-        >
-          <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center mr-2 group-hover:border-slate-400 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-          </div>
-          返回首页
-        </button>
+      <div className="flex items-center justify-between mb-2 md:mb-4 flex-shrink-0">
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={onBack}>返回首页</Button>
         <div className="text-center">
-            <h2 className="text-xl md:text-2xl font-bold text-slate-900">设定挑战对象</h2>
-            <p className="text-xs md:text-sm text-slate-500 mt-1">选择一个典型案例，或创建一个具体的下属画像</p>
+            <Title level={3} style={{ marginBottom: 0 }} className="text-lg md:text-2xl">设定挑战对象</Title>
         </div>
         <div className="w-24"></div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden flex-1 flex flex-col min-h-0">
-        {/* Tabs */}
-        <div className="flex border-b border-slate-100 bg-slate-50/50 p-1 mx-2 md:mx-4 mt-2 md:mt-4 rounded-xl flex-shrink-0 gap-1">
-          <button
-            onClick={() => setActiveTab('template')}
-            className={`flex-1 py-2 md:py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'template' 
-                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            推荐案例
-          </button>
-          <button
-            onClick={() => setActiveTab('custom')}
-            className={`flex-1 py-2 md:py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'custom' 
-                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Bookmark className="w-4 h-4 text-purple-500" />
-            我的角色 ({myPersonas.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`flex-1 py-2 md:py-3 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'create' 
-                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <UserPlus className="w-4 h-4 text-blue-500" />
-            新建角色
-          </button>
-        </div>
-
-        {/* Content Area - Scrollable */}
-        <div className="p-4 md:p-8 flex-1 overflow-y-auto bg-gradient-to-b from-white to-slate-50">
-          
-          {/* 1. Templates Tab */}
-          {activeTab === 'template' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 pb-8">
-              {TEMPLATES.map((t, idx) => (
-                <div key={idx} className="group relative bg-white border border-slate-200 rounded-2xl p-5 md:p-6 hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 transition-all duration-300 flex flex-col">
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between mb-4">
-                     <div className="relative">
-                        <img src={t.avatarUrl} alt={t.name} className="w-16 h-16 rounded-2xl object-cover shadow-sm group-hover:shadow-md transition-shadow" />
-                        {t.personaTag && (
-                          <div className={`absolute -bottom-2 -right-2 px-2 py-0.5 text-[10px] font-bold text-white rounded-full border-2 border-white
-                              ${t.personaTag.includes('防御') ? 'bg-orange-500' : 
-                                t.personaTag.includes('沉默') ? 'bg-slate-500' : 
-                                t.personaTag.includes('争辩') ? 'bg-red-500' : 'bg-blue-500'
-                              }`}>
-                              {t.personaTag}
-                          </div>
-                        )}
-                     </div>
-                     <div className="text-right">
-                        <div className="flex items-center justify-end gap-2 mb-1">
-                             <h3 className="text-xl font-bold text-slate-900">{t.name}</h3>
-                             <span className={`text-[10px] px-1.5 py-0.5 rounded text-white ${t.gender === 'Male' ? 'bg-blue-400' : 'bg-pink-400'}`}>
-                                {t.gender === 'Male' ? '男' : '女'}
-                             </span>
-                        </div>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t.jobTitle}</p>
-                     </div>
-                  </div>
-
-                  {/* Card Body */}
-                  <div className="mb-6 flex-1 space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
-                       <Users className="w-3 h-3" /> 工龄: {t.yearsOfExperience} 年
-                    </div>
-                    <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase">主要问题</span>
-                        <p className="text-sm text-slate-700 leading-relaxed mt-1 line-clamp-4">
-                            {t.businessPainPoints}
-                        </p>
-                    </div>
-                  </div>
-
-                  {/* Button */}
-                  <button
-                    onClick={() => handleStartTemplate(t)}
-                    className="w-full mt-auto bg-slate-50 text-slate-900 font-bold py-3 rounded-xl border border-slate-200 group-hover:bg-slate-900 group-hover:text-white group-hover:border-slate-900 transition-all flex items-center justify-center gap-2"
-                  >
-                    开始对谈 <Play className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 2. Custom Personas Tab (Saved) */}
-          {activeTab === 'custom' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 pb-8">
-               {myPersonas.length === 0 ? (
-                   <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
-                       <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                          <UserPlus className="w-8 h-8 opacity-50" />
-                       </div>
-                       <p className="text-lg font-medium text-slate-600">还没有创建过角色</p>
-                       <p className="text-sm">点击上方 "新建角色" 创建一个属于你的案例</p>
-                   </div>
-               ) : (
-                  myPersonas.map((t, idx) => (
-                    <div key={idx} className="group relative bg-white border border-purple-200 rounded-2xl p-5 md:p-6 hover:shadow-xl hover:border-purple-400 hover:-translate-y-1 transition-all duration-300 flex flex-col ring-1 ring-purple-100">
-                      
-                      <div className="absolute -top-3 left-6 px-3 py-1 bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
-                         自定义
-                      </div>
-
-                      {/* Card Header */}
-                      <div className="flex items-start justify-between mb-4 mt-2">
-                         <div className="relative">
-                            <img src={t.avatarUrl} alt={t.name} className="w-16 h-16 rounded-2xl object-cover shadow-sm group-hover:shadow-md transition-shadow" />
-                         </div>
-                         <div className="text-right">
-                            <div className="flex items-center justify-end gap-2 mb-1">
-                                 <h3 className="text-xl font-bold text-slate-900">{t.name}</h3>
-                                 <span className={`text-[10px] px-1.5 py-0.5 rounded text-white ${t.gender === 'Male' ? 'bg-blue-400' : 'bg-pink-400'}`}>
-                                    {t.gender === 'Male' ? '男' : '女'}
-                                 </span>
-                            </div>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t.jobTitle}</p>
-                         </div>
-                      </div>
-
-                      {/* Card Body */}
-                      <div className="mb-6 flex-1 space-y-3">
-                        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
-                           <Users className="w-3 h-3" /> 工龄: {t.yearsOfExperience} 年
-                        </div>
-                        <div>
-                            <span className="text-xs font-bold text-slate-400 uppercase">主要问题</span>
-                            <p className="text-sm text-slate-700 leading-relaxed mt-1 line-clamp-4">
-                                {t.businessPainPoints}
-                            </p>
-                        </div>
-                      </div>
-
-                      {/* Button */}
-                      <div className="flex gap-2 mt-auto">
-                        <button
-                            onClick={() => handleStartTemplate(t)}
-                            className="flex-1 bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-                        >
-                            开始 <Play className="w-4 h-4" />
-                        </button>
-                        <button
-                             onClick={(e) => handleDeleteCustom(e, t.id!)}
-                             className="p-3 border border-red-200 text-red-400 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors"
-                             title="删除角色"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-               )}
-            </div>
-          )}
-
-          {/* 3. Create Custom Tab */}
-          {activeTab === 'create' && (
-            <div className="max-w-4xl mx-auto pb-10">
-               <form onSubmit={generatePreview} className="space-y-6 md:space-y-8">
-                  
-                  {/* Basic Info Section */}
-                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4 md:space-y-6">
-                    <h3 className="flex items-center gap-2 font-bold text-slate-800 text-lg">
-                      <Briefcase className="w-5 h-5 text-blue-600" /> 基本信息
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">角色姓名</label>
-                        <input
-                          required
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                          placeholder="例如：李明"
-                          value={customPersona.name}
-                          onChange={e => setCustomPersona({...customPersona, name: e.target.value})}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">性别</label>
-                        <div className="flex gap-4">
-                           <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${customPersona.gender === 'Male' ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}>
-                               <input 
-                                  type="radio" 
-                                  name="gender" 
-                                  value="Male" 
-                                  checked={customPersona.gender === 'Male'} 
-                                  onChange={() => setCustomPersona({...customPersona, gender: 'Male'})}
-                                  className="hidden"
-                                />
-                                <span className="text-lg">👨</span> 男
-                           </label>
-                           <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${customPersona.gender === 'Female' ? 'bg-pink-50 border-pink-200 text-pink-700 font-bold shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}>
-                               <input 
-                                  type="radio" 
-                                  name="gender" 
-                                  value="Female" 
-                                  checked={customPersona.gender === 'Female'} 
-                                  onChange={() => setCustomPersona({...customPersona, gender: 'Female'})}
-                                  className="hidden"
-                                />
-                                <span className="text-lg">👩</span> 女
-                           </label>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">职位名称</label>
-                        <input
-                          required
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                          placeholder="例如：高级 Java 开发工程师"
-                          value={customPersona.jobTitle}
-                          onChange={e => setCustomPersona({...customPersona, jobTitle: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">工龄 (年)</label>
-                        <input
-                          required
-                          type="number"
-                          step="0.5"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                          placeholder="例如：3.5"
-                          value={customPersona.yearsOfExperience}
-                          onChange={e => setCustomPersona({...customPersona, yearsOfExperience: parseFloat(e.target.value)})}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase">上次绩效</label>
-                            <select 
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 outline-none"
-                                value={customPersona.lastPerformance}
-                                onChange={e => setCustomPersona({...customPersona, lastPerformance: e.target.value})}
-                            >
-                                <option value="A">A (优秀)</option>
-                                <option value="B+">B+ (良好)</option>
-                                <option value="B">B (合格)</option>
-                                <option value="C">C (不合格)</option>
-                                <option value="D">D (淘汰)</option>
-                            </select>
-                         </div>
-                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase">本次绩效</label>
-                            <select 
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 outline-none"
-                                value={customPersona.thisPerformance}
-                                onChange={e => setCustomPersona({...customPersona, thisPerformance: e.target.value})}
-                            >
-                                <option value="C">C (不合格)</option>
-                                <option value="D">D (淘汰)</option>
-                                <option value="B">B (合格-模拟)</option>
-                            </select>
-                         </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">工作内容描述</label>
-                        <textarea
-                          required
-                          rows={2}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                          placeholder="简述该员工的主要职责。建议包含负责的具体项目或业务板块。例如：负责华东区大客户销售，维护核心KA客户关系。"
-                          value={customPersona.description}
-                          onChange={e => setCustomPersona({...customPersona, description: e.target.value})}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">业务痛点 / 绩效问题</label>
-                        <div className="relative">
-                           <textarea
-                             required
-                             rows={3}
-                             className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 pl-10 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                             placeholder="请详细描述具体的绩效问题。建议包含具体的事实案例和员工的态度表现。例如：连续两个季度KPI未达标，且在复盘会上总是归因于市场环境，拒绝反思自身策略。"
-                             value={customPersona.businessPainPoints}
-                             onChange={e => setCustomPersona({...customPersona, businessPainPoints: e.target.value})}
-                           />
-                           <AlertTriangle className="absolute top-3 left-3 w-5 h-5 text-amber-500" />
-                        </div>
-                    </div>
-                  </div>
-
-                  {/* Personality Section */}
-                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4 md:space-y-6">
-                    <h3 className="flex items-center gap-2 font-bold text-slate-800 text-lg">
-                      <BrainCircuit className="w-5 h-5 text-purple-600" /> 性格特征 (大五人格)
-                    </h3>
-                    <p className="text-sm text-slate-500">AI 将根据以下设定模拟员工的微表情和语言风格。</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                      {/* Openness */}
-                      <div className="space-y-2">
-                         <label className="flex justify-between text-sm font-semibold text-slate-700">
-                            开放性 (Openness)
-                            <span className="text-xs text-slate-400 font-normal">创造力 vs 保守</span>
-                         </label>
-                         <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:border-blue-400"
-                            value={customPersona.bigFive.openness}
-                            onChange={(e) => handleBigFiveChange('openness', e.target.value as 'High' | 'Low')}
-                         >
-                             <option value="High">高 - 乐于接受新观念，思维活跃</option>
-                             <option value="Low">低 - 循规蹈矩，抗拒变化</option>
-                         </select>
-                      </div>
-
-                      {/* Conscientiousness */}
-                      <div className="space-y-2">
-                         <label className="flex justify-between text-sm font-semibold text-slate-700">
-                            尽责性 (Conscientiousness)
-                            <span className="text-xs text-slate-400 font-normal">自律 vs 随性</span>
-                         </label>
-                         <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:border-blue-400"
-                            value={customPersona.bigFive.conscientiousness}
-                            onChange={(e) => handleBigFiveChange('conscientiousness', e.target.value as 'High' | 'Low')}
-                         >
-                             <option value="High">高 - 条理清晰，注重细节</option>
-                             <option value="Low">低 - 随意松散，缺乏条理</option>
-                         </select>
-                      </div>
-
-                       {/* Extraversion */}
-                       <div className="space-y-2">
-                         <label className="flex justify-between text-sm font-semibold text-slate-700">
-                            外向性 (Extraversion)
-                            <span className="text-xs text-slate-400 font-normal">社交 vs 独处</span>
-                         </label>
-                         <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:border-blue-400"
-                            value={customPersona.bigFive.extraversion}
-                            onChange={(e) => handleBigFiveChange('extraversion', e.target.value as 'High' | 'Low')}
-                         >
-                             <option value="High">高 - 热情主动，表达欲强</option>
-                             <option value="Low">低 - 内敛沉默，被动回应</option>
-                         </select>
-                      </div>
-
-                      {/* Agreeableness */}
-                      <div className="space-y-2">
-                         <label className="flex justify-between text-sm font-semibold text-slate-700">
-                            宜人性 (Agreeableness)
-                            <span className="text-xs text-slate-400 font-normal">合作 vs 竞争</span>
-                         </label>
-                         <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:border-blue-400"
-                            value={customPersona.bigFive.agreeableness}
-                            onChange={(e) => handleBigFiveChange('agreeableness', e.target.value as 'High' | 'Low')}
-                         >
-                             <option value="High">高 - 善解人意，倾向妥协</option>
-                             <option value="Low">低 - 质疑挑战，据理力争</option>
-                         </select>
-                      </div>
-
-                      {/* Neuroticism */}
-                      <div className="space-y-2">
-                         <label className="flex justify-between text-sm font-semibold text-slate-700">
-                            神经质 (Neuroticism)
-                            <span className="text-xs text-slate-400 font-normal">敏感 vs 稳定</span>
-                         </label>
-                         <select 
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:border-blue-400"
-                            value={customPersona.bigFive.neuroticism}
-                            onChange={(e) => handleBigFiveChange('neuroticism', e.target.value as 'High' | 'Low')}
-                         >
-                             <option value="High">高 - 容易焦虑，情绪化</option>
-                             <option value="Low">低 - 情绪稳定，冷静</option>
-                         </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 pb-10">
-                    <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-800 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
-                      <FileCode className="w-5 h-5" /> 预览角色设定 (Prompt)
-                    </button>
-                  </div>
-               </form>
-            </div>
-          )}
-        </div>
+      <div className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+         <Tabs 
+            activeKey={activeTab} 
+            onChange={setActiveTab} 
+            items={items} 
+            centered 
+            size="large"
+            tabBarStyle={{ backgroundColor: '#fff', margin: 0, padding: '8px 16px', borderBottom: '1px solid #f0f0f0' }}
+            className="flex-1 flex flex-col overflow-hidden [&_.ant-tabs-content]:flex-1 [&_.ant-tabs-content]:overflow-y-auto [&_.ant-tabs-content]:p-4 md:[&_.ant-tabs-content]:p-6 [&_.ant-tabs-tabpane]:h-full"
+         />
       </div>
     </div>
   );
