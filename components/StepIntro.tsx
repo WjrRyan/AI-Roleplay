@@ -1,9 +1,10 @@
 import React from 'react';
 import { Target, CheckCircle2, ShieldAlert, Award } from 'lucide-react';
-import { Button, Card, Typography, Space, Badge } from 'antd';
+import { Button, Card as AntdCard, Typography, Space, Badge } from 'antd';
 import { HistoryOutlined, ArrowRightOutlined } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
+const Card = AntdCard as any;
 
 interface Props {
   onNext: () => void;

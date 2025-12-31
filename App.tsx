@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AppStep, Persona, Message, SavedSession, FeedbackReport } from './types';
 import { StepIntro } from './components/StepIntro';
@@ -42,6 +41,10 @@ function App() {
   const handleBackToIntro = () => {
     setCurrentStep(AppStep.INTRO);
   };
+
+  const handleBackToSetup = () => {
+    setCurrentStep(AppStep.SETUP);
+  };
   
   const handleGoToHistory = () => {
     setCurrentStep(AppStep.HISTORY);
@@ -68,7 +71,11 @@ function App() {
         )}
 
         {currentStep === AppStep.CHAT && selectedPersona && (
-          <StepChat persona={selectedPersona} onFinish={handleFinishChat} />
+          <StepChat 
+            persona={selectedPersona} 
+            onFinish={handleFinishChat} 
+            onBack={handleBackToSetup}
+          />
         )}
 
         {currentStep === AppStep.REPORT && selectedPersona && (

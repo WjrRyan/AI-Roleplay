@@ -72,20 +72,63 @@ export interface ChatSession {
   endTime?: Date;
 }
 
-export interface FeedbackReport {
-  score: number;
-  empathyScore: number;
-  clarityScore: number;
-  goalAchievementScore: number;
-  summary: string;
-  strengths: string[];
-  improvements: string[];
-  transcriptReview: string;
+// --- Detailed Report Types ---
+
+export interface DimensionEvaluation {
+  score: number; // 1-5
+  analysis: string;
+  forbiddenBehaviors: string[]; // List of specific forbidden behaviors detected
 }
 
-export interface NPSData {
-  score: number;
-  feedback: string;
+export interface FiveStepEvaluation {
+  stepName: string;
+  executed: boolean;
+  analysis: string;
+  recommendedScript?: string; // Only present if executed is false
+}
+
+export interface LearningResource {
+  title: string;
+  url: string;
+  description: string;
+}
+
+export interface FeedbackReport {
+  // Summary
+  score: number; // 0-100 overall
+  level: '新手级' | '发展中' | '胜任级' | '卓越级';
+  summary: string;
+  strengths: string[];
+  challenges: string[];
+  
+  // Core Dimensions (1-3)
+  sbi: DimensionEvaluation;
+  grow: DimensionEvaluation;
+  listening: DimensionEvaluation;
+  
+  // Special Intervention
+  rotationFallacyDetected: boolean;
+  
+  // Dimension 5
+  fiveSteps: FiveStepEvaluation[];
+  
+  // Resources
+  longTermAdvice: string;
+  learningResources: LearningResource[];
+  
+  // Legacy fields for compatibility (optional)
+  empathyScore?: number;
+  clarityScore?: number;
+  goalAchievementScore?: number;
+  improvements?: string[];
+  transcriptReview?: string;
+}
+
+export interface UserFeedback {
+  overallScore: number;   // 综合体验 (NPS)
+  realismScore: number;   // 角色真实度
+  utilityScore: number;   // 报告有用性
+  comment?: string;       // 开放反馈
 }
 
 export interface SavedSession {
@@ -94,5 +137,6 @@ export interface SavedSession {
   persona: Persona;
   messages: Message[];
   report: FeedbackReport;
-  nps?: number; // Optional user rating of the session
+  nps?: number; // Legacy
+  userFeedback?: UserFeedback; // New detailed feedback
 }

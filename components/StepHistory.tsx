@@ -41,7 +41,7 @@ export const StepHistory: React.FC<Props> = ({ onBack, onViewSession }) => {
               <List
                 itemLayout="horizontal"
                 dataSource={sessions}
-                renderItem={(session) => (
+                renderItem={(session: SavedSession) => (
                     <List.Item
                         className="hover:bg-slate-50 transition-colors rounded-xl p-4 cursor-pointer border-b border-slate-100 last:border-0"
                         onClick={() => onViewSession(session)}

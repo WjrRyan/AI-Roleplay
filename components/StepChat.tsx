@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, Mic, StopCircle, RefreshCw, LogOut, Lightbulb, MessageCircle, X, Sparkles, TrendingDown, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Send, User, Mic, StopCircle, RefreshCw, LogOut, Lightbulb, MessageCircle, X, Sparkles, TrendingDown, AlertTriangle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Persona, Message, BigFive } from '../types';
 import { startRoleplaySession, getCoachHint, getTurnFeedback, generateSpeech, parseSimulationResponse } from '../services/geminiService';
 import { Chat } from '@google/genai';
-import { Button, Input, Drawer, Avatar, Tooltip, Badge, Spin, Card, Switch, Tag, message as antdMessage } from 'antd';
+import { Button, Input, Drawer, Avatar, Tooltip, Badge, Spin, Card as AntdCard, Switch, Tag, message as antdMessage, Modal } from 'antd';
 import { SoundOutlined, MutedOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
+const Card = AntdCard as any;
 
 interface Props {
   persona: Persona;
   onFinish: (messages: Message[]) => void;
+  onBack: () => void;
 }
 
 const BIG_FIVE_LABELS: Record<keyof BigFive, string> = {
@@ -21,7 +23,7 @@ const BIG_FIVE_LABELS: Record<keyof BigFive, string> = {
   neuroticism: '神经质'
 };
 
-export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
+export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -314,16 +316,35 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
       <div className="flex-1 flex flex-col bg-white md:rounded-3xl shadow-none md:shadow-2xl shadow-slate-200/50 border-x-0 md:border md:border-slate-100 overflow-hidden relative h-full">
         {/* Chat Header */}
         <div className="bg-white/90 backdrop-blur-md border-b border-slate-100 p-3 md:p-4 flex justify-between items-center absolute top-0 left-0 right-0 z-10 shadow-sm">
-           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowMobileStats(true)}>
-               <div className="lg:hidden relative">
-                  <Avatar src={persona.avatarUrl} />
-                  <Badge status="processing" className="absolute bottom-0 right-0" />
-               </div>
-               <div>
-                  <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm md:text-base">
-                    绩效沟通会议
-                    {isListening && <Tag color="red" className="animate-pulse m-0 border-0">正在录音...</Tag>}
-                  </h2>
+           <div className="flex items-center gap-2 md:gap-3">
+               <Tooltip title="退出并返回">
+                   <Button 
+                      type="text" 
+                      icon={<ArrowLeft className="w-5 h-5 text-slate-600" />} 
+                      onClick={() => {
+                        Modal.confirm({
+                          title: '退出演练',
+                          content: '确定要返回角色选择吗？当前对话进度将丢失。',
+                          okText: '确定离开',
+                          cancelText: '继续演练',
+                          okType: 'danger',
+                          onOk: onBack,
+                          centered: true,
+                        });
+                      }}
+                   />
+               </Tooltip>
+               <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowMobileStats(true)}>
+                   <div className="lg:hidden relative">
+                      <Avatar src={persona.avatarUrl} />
+                      <Badge status="processing" className="absolute bottom-0 right-0" />
+                   </div>
+                   <div>
+                      <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm md:text-base">
+                        绩效沟通会议
+                        {isListening && <Tag color="red" className="animate-pulse m-0 border-0">正在录音...</Tag>}
+                      </h2>
+                   </div>
                </div>
            </div>
            <div className="lg:hidden">
@@ -332,13 +353,13 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
         </div>
 
         {/* Chat Stream */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-20 pb-4 bg-slate-50 space-y-6 scroll-smooth">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-20 pb-4 bg-slate-50/50 space-y-6 scroll-smooth">
           {messages.map((msg) => (
             <div key={msg.id} className="space-y-2">
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'system' ? (
                     <div className="w-full flex justify-center my-6">
-                        <Tag icon={<RefreshCw className="w-3 h-3 animate-spin mr-1"/>} className="rounded-full px-3 py-1 bg-slate-200 border-0 text-slate-600">
+                        <Tag icon={<RefreshCw className="w-3 h-3 animate-spin mr-1"/>} className="rounded-full px-4 py-1.5 bg-slate-100 border-slate-200 text-slate-500 shadow-sm">
                             {msg.text}
                         </Tag>
                     </div>
@@ -347,34 +368,32 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                     <Avatar 
                         src={msg.role === 'model' ? persona.avatarUrl : undefined} 
                         icon={msg.role === 'user' && <User className="w-4 h-4" />} 
-                        className={msg.role === 'user' ? 'bg-slate-900' : ''}
+                        className={`flex-shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-blue-600' : 'bg-white'}`}
                         size={40}
                     />
                     
                     <div className={`flex flex-col gap-2 min-w-[150px] md:min-w-[200px] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                         {msg.role === 'model' && msg.evaluation && (
-                            <div className="mb-1">
-                                <Tag color={msg.evaluation.includes('负面') ? 'red' : msg.evaluation.includes('正面') ? 'green' : 'default'}>
+                            <div className="mb-1 animate-fadeIn">
+                                <Tag className="rounded-full px-2 border-0 bg-white/80 backdrop-blur shadow-sm" color={msg.evaluation.includes('负面') ? 'error' : msg.evaluation.includes('正面') ? 'success' : 'default'}>
                                     {msg.evaluation.includes('负面') ? '⚠️' : msg.evaluation.includes('正面') ? '✨' : '👀'} 评价: {msg.evaluation}
                                 </Tag>
                             </div>
                         )}
 
-                        <Card 
-                            size="small"
-                            className={`shadow-sm border-0 ${
-                                msg.role === 'user' 
-                                ? 'bg-blue-600 text-white rounded-tr-none' 
-                                : 'bg-white text-slate-800 rounded-tl-none'
+                        <div 
+                            className={`relative px-5 py-3 shadow-md text-sm md:text-base whitespace-pre-wrap leading-relaxed transition-all duration-300
+                            ${msg.role === 'user' 
+                                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-none shadow-blue-500/20' 
+                                : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-none shadow-slate-200/50'
                             }`}
-                            bodyStyle={{ padding: '12px 16px' }}
                         >
-                            <span className="text-sm md:text-base whitespace-pre-wrap">{msg.text}</span>
-                        </Card>
+                            {msg.text}
+                        </div>
 
                         {/* Action Buttons */}
                         {msg.role === 'user' && (
-                           <div className="flex gap-2 justify-end">
+                           <div className="flex gap-2 justify-end opacity-90">
                               <Tooltip title="获取 AI 优化建议">
                                 <Button 
                                     size="small" 
@@ -382,7 +401,7 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                                     icon={msg.isAnalyzing && !msg.suggestion && !msg.analysis ? <Spin size="small"/> : <Lightbulb className="w-3.5 h-3.5" />}
                                     onClick={() => handleGetSuggestion(msg)}
                                     disabled={msg.isAnalyzing}
-                                    className={msg.suggestion ? 'text-indigo-600 bg-indigo-50' : 'text-slate-500'}
+                                    className={`rounded-full px-3 text-xs ${msg.suggestion ? 'text-indigo-600 bg-indigo-50 font-medium' : 'text-slate-400 hover:text-indigo-500 hover:bg-slate-100'}`}
                                 >
                                     建议
                                 </Button>
@@ -395,7 +414,7 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                                     icon={msg.isAnalyzing && !msg.suggestion && !msg.analysis ? <Spin size="small"/> : <MessageCircle className="w-3.5 h-3.5" />}
                                     onClick={() => handleGetFeedback(msg)}
                                     disabled={msg.isAnalyzing}
-                                    className={msg.analysis ? 'text-amber-600 bg-amber-50' : 'text-slate-500'}
+                                    className={`rounded-full px-3 text-xs ${msg.analysis ? 'text-amber-600 bg-amber-50 font-medium' : 'text-slate-400 hover:text-amber-500 hover:bg-slate-100'}`}
                                 >
                                     分析
                                 </Button>
@@ -446,8 +465,9 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
 
           {isLoading && (
             <div className="flex justify-start pl-2">
-                 <div className="bg-white p-4 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm">
-                     <Spin tip="对方正在思考..." size="small" />
+                 <div className="bg-white px-5 py-4 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm flex items-center gap-3">
+                     <Spin size="small" />
+                     <span className="text-slate-500 text-sm">对方正在思考...</span>
                  </div>
             </div>
           )}
@@ -455,8 +475,8 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
         </div>
 
         {/* Input Area */}
-        <div className="p-3 md:p-6 bg-white border-t border-slate-100 z-20 flex-shrink-0">
-          <div className="flex gap-2 items-end">
+        <div className="p-4 md:p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20 flex-shrink-0">
+          <div className="max-w-4xl mx-auto flex gap-3 items-end bg-slate-100 p-2 rounded-[26px] border border-slate-200 focus-within:ring-4 focus-within:ring-blue-100 focus-within:border-blue-300 transition-all shadow-inner">
             <div className="flex-1 relative">
                 <TextArea
                     value={inputText}
@@ -471,22 +491,27 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                     }}
                     placeholder={isListening ? "正在聆听..." : "输入你的回复..."}
                     autoSize={{ minRows: 1, maxRows: 4 }}
-                    className="text-base py-3 pr-10"
+                    className="text-base py-3 px-4 bg-transparent border-none shadow-none focus:shadow-none focus:bg-transparent resize-none !min-h-[44px]"
                     style={{ fontSize: '16px' }}
                 />
-                
-                <Tooltip title={isListening ? "停止录音" : "语音输入"}>
-                    <Button 
-                        type="text"
-                        shape="circle"
-                        icon={isListening ? <StopCircle className="w-5 h-5 text-red-500 animate-pulse" /> : <Mic className="w-5 h-5 text-slate-400" />}
-                        onClick={toggleListening}
-                        disabled={!browserSupportsSpeech}
-                        className="absolute right-1 bottom-1"
-                    />
-                </Tooltip>
             </div>
             
+            <Tooltip title={isListening ? "停止录音" : "语音输入"}>
+                <Button 
+                    type="text"
+                    shape="circle"
+                    size="large"
+                    icon={isListening ? <StopCircle className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5 text-slate-500" />}
+                    onClick={toggleListening}
+                    disabled={!browserSupportsSpeech}
+                    className={`flex-shrink-0 mb-1 transition-all duration-300 ${
+                        isListening 
+                        ? 'bg-red-50 shadow-inner ring-2 ring-red-100 scale-105' 
+                        : 'bg-white shadow-sm hover:bg-slate-50 hover:text-blue-600'
+                    }`}
+                />
+            </Tooltip>
+
             <Button 
                 type="primary" 
                 shape="circle" 
@@ -494,7 +519,7 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish }) => {
                 icon={<Send className="w-5 h-5" />}
                 onClick={handleSendMessage}
                 disabled={isLoading || !inputText.trim() || isListening}
-                className="flex-shrink-0 mb-0.5"
+                className={`flex-shrink-0 mb-1 shadow-md shadow-blue-500/30 transition-transform ${inputText.trim() ? 'scale-100' : 'scale-90 opacity-80'}`}
             />
           </div>
         </div>

@@ -3,12 +3,12 @@ import { Users, AlertTriangle, Briefcase, BrainCircuit, FileCode, Check, Bookmar
 import { Persona } from '../types';
 import { generateSystemInstruction } from '../services/geminiService';
 import { saveCustomPersona, getCustomPersonas, deleteCustomPersona } from '../services/storage';
-import { Button, Card, Tabs, Form, Input, Select, Radio, Tag, Modal, Avatar, Row, Col, Typography, message, Empty, Space } from 'antd';
+import { Button, Card as AntdCard, Tabs, Form, Input, Select, Radio, Tag, Modal, Avatar, Row, Col, Typography, message, Empty, Space } from 'antd';
 import { PlayCircleOutlined, DeleteOutlined, ArrowLeftOutlined, ManOutlined, WomanOutlined } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
-const { Option } = Select;
+const Card = AntdCard as any;
 
 interface Props {
   onStart: (persona: Persona) => void;
@@ -363,21 +363,21 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
                   <Row gutter={16}>
                       <Col xs={12} md={12}>
                           <Form.Item name="lastPerformance" label="上次绩效">
-                              <Select>
-                                  <Option value="A">A (优秀)</Option>
-                                  <Option value="B+">B+ (良好)</Option>
-                                  <Option value="B">B (合格)</Option>
-                                  <Option value="C">C (不合格)</Option>
-                              </Select>
+                              <Select options={[
+                                  { value: "A", label: "A (优秀)" },
+                                  { value: "B+", label: "B+ (良好)" },
+                                  { value: "B", label: "B (合格)" },
+                                  { value: "C", label: "C (不合格)" }
+                              ]} />
                           </Form.Item>
                       </Col>
                       <Col xs={12} md={12}>
                           <Form.Item name="thisPerformance" label="本次绩效">
-                              <Select>
-                                  <Option value="C">C (不合格)</Option>
-                                  <Option value="D">D (淘汰)</Option>
-                                  <Option value="B">B (合格-模拟)</Option>
-                              </Select>
+                              <Select options={[
+                                  { value: "C", label: "C (不合格)" },
+                                  { value: "D", label: "D (淘汰)" },
+                                  { value: "B", label: "B (合格-模拟)" }
+                              ]} />
                           </Form.Item>
                       </Col>
                   </Row>
@@ -404,10 +404,10 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
                                 label={trait.charAt(0).toUpperCase() + trait.slice(1)}
                                 className="mb-0"
                               >
-                                  <Select>
-                                      <Option value="High">High (高)</Option>
-                                      <Option value="Low">Low (低)</Option>
-                                  </Select>
+                                  <Select options={[
+                                      { value: "High", label: "High (高)" },
+                                      { value: "Low", label: "Low (低)" }
+                                  ]} />
                               </Form.Item>
                           </Col>
                       ))}
