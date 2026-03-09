@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Users, AlertTriangle, Briefcase, BrainCircuit, FileCode, Check, Bookmark, Sparkles, UserPlus, User as UserIcon } from 'lucide-react';
-import { Persona } from '../types';
-import { generateSystemInstruction } from '../services/geminiService';
-import { saveCustomPersona, getCustomPersonas, deleteCustomPersona } from '../services/storage';
+import { Persona, BigFive } from '../types';
+import { PERSONALITY_PRESETS, PersonalityPreset, TEMPLATES } from '../constants';
+import { generateSystemInstruction } from '../utils/geminiService';
+import { saveCustomPersona, getCustomPersonas, deleteCustomPersona } from '../utils/storage';
 import { Button, Card as AntdCard, Tabs, Form, Input, Select, Radio, Tag, Modal, Avatar, Row, Col, Typography, message, Empty, Space } from 'antd';
 import { PlayCircleOutlined, DeleteOutlined, ArrowLeftOutlined, ManOutlined, WomanOutlined } from '@ant-design/icons';
 
@@ -15,75 +16,13 @@ interface Props {
   onBack: () => void;
 }
 
-// System Templates
-const TEMPLATES: Persona[] = [
-  {
-    name: "小陈",
-    gender: 'Male',
-    jobTitle: "初级开发工程师",
-    yearsOfExperience: 0.8,
-    description: "负责前端基础组件开发和日常Bug修复。",
-    businessPainPoints: "代码质量低，Bug 率远超团队平均水平。经常以'需求不清晰'为由推卸责任，甚至反问'为什么不一开始就定好'。",
-    lastPerformance: "B",
-    thisPerformance: "C",
-    personaTag: "沉默型",
-    avatarUrl: "https://randomuser.me/api/portraits/men/32.jpg",
-    voiceName: "Fenrir",
-    bigFive: {
-      openness: 'Low',
-      conscientiousness: 'Low',
-      extraversion: 'Low',
-      agreeableness: 'High',
-      neuroticism: 'High'
-    }
-  },
-  {
-    name: "莎莎",
-    gender: 'Female',
-    jobTitle: "资深销售",
-    yearsOfExperience: 3,
-    description: "负责华东区大客户维护和新客户拓展。",
-    businessPainPoints: "连续两个季度未达成 KPI，且近期在客户面前情绪失控，遭到投诉。面对质问容易情绪崩溃。",
-    lastPerformance: "B+",
-    thisPerformance: "C",
-    personaTag: "防御型",
-    avatarUrl: "https://randomuser.me/api/portraits/women/44.jpg",
-    voiceName: "Kore",
-    bigFive: {
-      openness: 'Low',
-      conscientiousness: 'High',
-      extraversion: 'High',
-      agreeableness: 'Low',
-      neuroticism: 'High'
-    }
-  },
-  {
-    name: "老王",
-    gender: 'Male',
-    jobTitle: "项目经理",
-    yearsOfExperience: 5,
-    description: "负责核心业务系统的项目管理和交付。",
-    businessPainPoints: "团队管理风格粗暴，近半年导致两名核心骨干离职。拒绝承认管理方式有问题，认为员工太脆弱。",
-    lastPerformance: "A",
-    thisPerformance: "C",
-    personaTag: "争辩型",
-    avatarUrl: "https://randomuser.me/api/portraits/men/85.jpg",
-    voiceName: "Charon",
-    bigFive: {
-      openness: 'High',
-      conscientiousness: 'High',
-      extraversion: 'High',
-      agreeableness: 'Low',
-      neuroticism: 'Low'
-    }
-  }
-];
-
 export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
+
   const [activeTab, setActiveTab] = useState<string>('template');
   const [viewMode, setViewMode] = useState<'form' | 'preview'>('form');
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
   const [myPersonas, setMyPersonas] = useState<Persona[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('pleaser'); // Default selection
   const [form] = Form.useForm();
   
   // Initial state for create form
@@ -97,13 +36,7 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
     lastPerformance: "B",
     thisPerformance: "C",
     voiceName: "Kore",
-    bigFive: {
-      openness: 'High',
-      conscientiousness: 'High',
-      extraversion: 'High',
-      agreeableness: 'High',
-      neuroticism: 'Low'
-    }
+    bigFive: PERSONALITY_PRESETS.find(p => p.id === 'pleaser')!.bigFive
   });
 
   useEffect(() => {
@@ -130,10 +63,15 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
     });
   };
 
+  const handlePresetSelect = (preset: PersonalityPreset) => {
+      setSelectedPresetId(preset.id);
+      form.setFieldsValue({ bigFive: preset.bigFive });
+  };
+
   const generatePreview = async () => {
     try {
-        await form.validateFields();
-        const values = form.getFieldsValue();
+        await (form as any).validateFields();
+        const values = (form as any).getFieldsValue();
         
         // 1. Assign Avatar based on gender
         const randomId = Math.floor(Math.random() * 99);
@@ -143,9 +81,9 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
         const voiceName = values.gender === 'Male' ? 'Fenrir' : 'Kore';
 
         const finalPersona: Persona = {
-            ...customPersona, // keep bigFive defaults
+            ...customPersona, 
             ...values,
-            bigFive: values.bigFive,
+            // bigFive is already in values
             id: customPersona.id || Date.now().toString(),
             isCustom: true,
             avatarUrl,
@@ -160,6 +98,7 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
         
         setViewMode('preview');
     } catch (error) {
+        console.error(error);
         message.error('请填写所有必填信息');
     }
   };
@@ -395,23 +334,37 @@ export const StepSetup: React.FC<Props> = ({ onStart, onBack }) => {
                   </Form.Item>
               </Card>
 
-              <Card title={<><BrainCircuit className="w-4 h-4 inline mr-2 text-purple-600" />性格特征 (大五人格)</>} className="shadow-sm">
-                  <Row gutter={[16, 16]}>
-                      {['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'].map((trait) => (
-                          <Col xs={12} md={12} key={trait}>
-                              <Form.Item 
-                                name={['bigFive', trait]} 
-                                label={trait.charAt(0).toUpperCase() + trait.slice(1)}
-                                className="mb-0"
-                              >
-                                  <Select options={[
-                                      { value: "High", label: "High (高)" },
-                                      { value: "Low", label: "Low (低)" }
-                                  ]} />
-                              </Form.Item>
-                          </Col>
+              <Card title={<><BrainCircuit className="w-4 h-4 inline mr-2 text-purple-600" />性格特征预设</>} className="shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {PERSONALITY_PRESETS.map((preset) => (
+                          <div 
+                             key={preset.id}
+                             onClick={() => handlePresetSelect(preset)}
+                             className={`cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md relative overflow-hidden ${
+                                 selectedPresetId === preset.id 
+                                 ? 'border-purple-500 bg-purple-50' 
+                                 : 'border-slate-100 hover:border-purple-200 bg-white'
+                             }`}
+                          >
+                              {selectedPresetId === preset.id && (
+                                  <div className="absolute top-0 right-0 bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">
+                                      已选择
+                                  </div>
+                              )}
+                              <div className={`font-bold mb-1 ${selectedPresetId === preset.id ? 'text-purple-700' : 'text-slate-800'}`}>
+                                  {preset.name}
+                              </div>
+                              <div className="text-xs text-slate-500 leading-relaxed">
+                                  {preset.description}
+                              </div>
+                          </div>
                       ))}
-                  </Row>
+                  </div>
+                  
+                  {/* Hidden form item to track value for submission */}
+                  <Form.Item name="bigFive" hidden rules={[{ required: true }]}>
+                      <Input />
+                  </Form.Item>
               </Card>
 
               <Button type="primary" htmlType="submit" size="large" block icon={<FileCode className="w-4 h-4" />} className="h-12 text-lg">

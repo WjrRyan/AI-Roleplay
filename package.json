@@ -9,14 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/icons": "^5.5.1",
+    "@google/genai": "^1.30.0",
+    "antd": "^5.24.1",
+    "antd-mobile": "^5.42.3",
+    "dayjs": "^1.11.10",
+    "lucide-react": "^0.555.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@google/genai": "^1.30.0",
-    "recharts": "^3.5.1",
-    "lucide-react": "^0.555.0",
-    "antd": "^5.24.1",
-    "@ant-design/icons": "^5.5.1",
-    "dayjs": "^1.11.10"
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

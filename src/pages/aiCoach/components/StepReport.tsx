@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, Sparkles, Target, Quote, CheckCircle2, XCircle, BookOpen, ExternalLink, ShieldAlert, ArrowRight, MessageSquare, ThumbsUp, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Message, Persona, FeedbackReport, DimensionEvaluation, UserFeedback } from '../types';
-import { generateSessionReport } from '../services/geminiService';
-import { saveSession, updateSession } from '../services/storage';
+import { generateSessionReport } from '../utils/geminiService';
+import { saveSession, updateSession } from '../utils/storage';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { Button, Card as AntdCard, Rate, Tag, Progress, Row, Col, Typography, Spin, Result as AntdResult, Alert, Tooltip, Input, Divider, Collapse } from 'antd';
 import { ReloadOutlined, InfoCircleOutlined, StarFilled, CaretRightOutlined } from '@ant-design/icons';

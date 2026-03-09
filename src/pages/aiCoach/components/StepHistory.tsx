@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Trash2, Calendar, FileText } from 'lucide-react';
 import { SavedSession } from '../types';
-import { getSavedSessions, deleteSession } from '../services/storage';
+import { getSavedSessions, deleteSession } from '../utils/storage';
 import { Button, List, Typography, Popconfirm, Tag, Empty } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';

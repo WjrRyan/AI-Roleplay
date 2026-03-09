@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, User, Mic, StopCircle, RefreshCw, LogOut, Lightbulb, MessageCircle, X, Sparkles, TrendingDown, AlertTriangle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Persona, Message, BigFive } from '../types';
-import { startRoleplaySession, getCoachHint, getTurnFeedback, generateSpeech, parseSimulationResponse } from '../services/geminiService';
+import { startRoleplaySession, getCoachHint, getTurnFeedback, generateSpeech, parseSimulationResponse } from '../utils/geminiService';
 import { Chat } from '@google/genai';
 import { Button, Input, Drawer, Avatar, Tooltip, Badge, Spin, Card as AntdCard, Switch, Tag, message as antdMessage, Modal } from 'antd';
 import { SoundOutlined, MutedOutlined } from '@ant-design/icons';
@@ -353,13 +353,13 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
         </div>
 
         {/* Chat Stream */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-20 pb-4 bg-slate-50/50 space-y-6 scroll-smooth">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-20 pb-4 bg-[#F5F7FA] space-y-6 scroll-smooth">
           {messages.map((msg) => (
             <div key={msg.id} className="space-y-2">
                 <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'system' ? (
                     <div className="w-full flex justify-center my-6">
-                        <Tag icon={<RefreshCw className="w-3 h-3 animate-spin mr-1"/>} className="rounded-full px-4 py-1.5 bg-slate-100 border-slate-200 text-slate-500 shadow-sm">
+                        <Tag icon={<RefreshCw className="w-3 h-3 animate-spin mr-1"/>} className="rounded-full px-4 py-1.5 bg-white border-slate-200 text-slate-500 shadow-sm">
                             {msg.text}
                         </Tag>
                     </div>
@@ -368,7 +368,7 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
                     <Avatar 
                         src={msg.role === 'model' ? persona.avatarUrl : undefined} 
                         icon={msg.role === 'user' && <User className="w-4 h-4" />} 
-                        className={`flex-shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-blue-600' : 'bg-white'}`}
+                        className={`flex-shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-indigo-600' : 'bg-white'}`}
                         size={40}
                     />
                     
@@ -382,10 +382,10 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
                         )}
 
                         <div 
-                            className={`relative px-5 py-3 shadow-md text-sm md:text-base whitespace-pre-wrap leading-relaxed transition-all duration-300
+                            className={`relative px-5 py-3 shadow-[0_2px_8px_rgb(0,0,0,0.04)] text-sm md:text-[15px] whitespace-pre-wrap leading-relaxed transition-all duration-300
                             ${msg.role === 'user' 
-                                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-none shadow-blue-500/20' 
-                                : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-none shadow-slate-200/50'
+                                ? 'bg-[#0f172a] text-white rounded-[20px] rounded-tr-none' 
+                                : 'bg-white text-slate-700 border border-slate-100 rounded-[20px] rounded-tl-none'
                             }`}
                         >
                             {msg.text}
@@ -428,20 +428,20 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
 
                 {(msg.analysis || msg.suggestion) && (
                     <div className={`flex w-full animate-slideUp ${msg.role === 'user' ? 'justify-end' : 'justify-start ml-12 md:ml-14'}`}>
-                        <div className={`bg-slate-800 text-slate-200 rounded-2xl p-4 shadow-xl text-sm relative border border-slate-700 max-w-[90%] md:max-w-[85%] ${msg.role === 'user' ? 'mr-12 md:mr-14' : ''}`}>
+                        <div className={`bg-white text-slate-700 rounded-2xl p-4 shadow-xl text-sm relative border border-slate-100 max-w-[90%] md:max-w-[85%] ${msg.role === 'user' ? 'mr-12 md:mr-14' : ''}`}>
                              <Button 
                                 type="text" 
                                 icon={<X className="w-4 h-4 text-slate-400" />} 
                                 onClick={() => clearAnalysis(msg.id)}
-                                className="absolute top-1 right-1 hover:bg-slate-700"
+                                className="absolute top-1 right-1 hover:bg-slate-50"
                              />
 
                              {msg.suggestion && (
                                 <div className="mb-4 last:mb-0">
-                                    <h5 className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider mb-2">
+                                    <h5 className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider mb-2">
                                         <Sparkles className="w-4 h-4" /> 建议优化方向
                                     </h5>
-                                    <div className="space-y-1 text-slate-300 whitespace-pre-line pl-2 border-l-2 border-indigo-500/30">
+                                    <div className="space-y-1 text-slate-600 whitespace-pre-line pl-2 border-l-2 border-indigo-500/30">
                                         {msg.suggestion}
                                     </div>
                                 </div>
@@ -449,10 +449,10 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
 
                              {msg.analysis && (
                                 <div className="last:mb-0">
-                                    <h5 className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider mb-2">
+                                    <h5 className="flex items-center gap-2 text-amber-600 font-bold text-xs uppercase tracking-wider mb-2">
                                         <MessageCircle className="w-4 h-4" /> 话术分析
                                     </h5>
-                                    <div className="space-y-1 text-slate-300 whitespace-pre-line pl-2 border-l-2 border-amber-500/30">
+                                    <div className="space-y-1 text-slate-600 whitespace-pre-line pl-2 border-l-2 border-amber-500/30">
                                         {msg.analysis}
                                     </div>
                                 </div>
@@ -465,7 +465,7 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
 
           {isLoading && (
             <div className="flex justify-start pl-2">
-                 <div className="bg-white px-5 py-4 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm flex items-center gap-3">
+                 <div className="bg-white px-5 py-4 rounded-[20px] rounded-tl-none border border-slate-100 shadow-sm flex items-center gap-3">
                      <Spin size="small" />
                      <span className="text-slate-500 text-sm">对方正在思考...</span>
                  </div>
@@ -475,9 +475,10 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 md:p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20 flex-shrink-0">
-          <div className="max-w-4xl mx-auto flex gap-3 items-end bg-slate-100 p-2 rounded-[26px] border border-slate-200 focus-within:ring-4 focus-within:ring-blue-100 focus-within:border-blue-300 transition-all shadow-inner">
-            <div className="flex-1 relative">
+        <div className="p-4 md:p-6 bg-[#F5F7FA] z-20 flex-shrink-0">
+          <div className="max-w-4xl mx-auto relative group">
+            <div className="absolute inset-0 bg-white rounded-[28px] shadow-[0_8px_30px_rgb(0,0,0,0.04)]"></div>
+            <div className="relative flex items-end p-2 pl-6">
                 <TextArea
                     value={inputText}
                     disabled={isLoading || isListening}
@@ -491,36 +492,37 @@ export const StepChat: React.FC<Props> = ({ persona, onFinish, onBack }) => {
                     }}
                     placeholder={isListening ? "正在聆听..." : "输入你的回复..."}
                     autoSize={{ minRows: 1, maxRows: 4 }}
-                    className="text-base py-3 px-4 bg-transparent border-none shadow-none focus:shadow-none focus:bg-transparent resize-none !min-h-[44px]"
-                    style={{ fontSize: '16px' }}
+                    className="flex-1 bg-transparent border-none shadow-none focus:shadow-none focus:bg-transparent resize-none !min-h-[44px] text-[15px] text-slate-700 py-3 px-0"
                 />
-            </div>
-            
-            <Tooltip title={isListening ? "停止录音" : "语音输入"}>
-                <Button 
-                    type="text"
-                    shape="circle"
-                    size="large"
-                    icon={isListening ? <StopCircle className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5 text-slate-500" />}
-                    onClick={toggleListening}
-                    disabled={!browserSupportsSpeech}
-                    className={`flex-shrink-0 mb-1 transition-all duration-300 ${
-                        isListening 
-                        ? 'bg-red-50 shadow-inner ring-2 ring-red-100 scale-105' 
-                        : 'bg-white shadow-sm hover:bg-slate-50 hover:text-blue-600'
-                    }`}
-                />
-            </Tooltip>
+                
+                <div className="flex items-center gap-2 pb-1 pr-1">
+                    <Tooltip title={isListening ? "停止录音" : "语音输入"}>
+                        <Button 
+                            type="text"
+                            shape="circle"
+                            icon={isListening ? <StopCircle className="w-5 h-5 text-red-500 animate-pulse" /> : <Mic className="w-5 h-5 text-slate-400 hover:text-blue-500" />}
+                            onClick={toggleListening}
+                            disabled={!browserSupportsSpeech}
+                            className="flex-shrink-0"
+                        />
+                    </Tooltip>
 
-            <Button 
-                type="primary" 
-                shape="circle" 
-                size="large"
-                icon={<Send className="w-5 h-5" />}
-                onClick={handleSendMessage}
-                disabled={isLoading || !inputText.trim() || isListening}
-                className={`flex-shrink-0 mb-1 shadow-md shadow-blue-500/30 transition-transform ${inputText.trim() ? 'scale-100' : 'scale-90 opacity-80'}`}
-            />
+                    <button 
+                        onClick={handleSendMessage}
+                        disabled={isLoading || !inputText.trim() || isListening}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+                            inputText.trim() 
+                            ? 'bg-[#0f172a] hover:bg-black text-white shadow-slate-300' 
+                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        }`}
+                    >
+                        <ArrowRight size={20} strokeWidth={2.5} />
+                    </button>
+                </div>
+            </div>
+          </div>
+          <div className="text-center mt-3">
+             <span className="text-[10px] text-slate-400/80 font-medium">AI生成内容仅供参考</span>
           </div>
         </div>
       </div>
